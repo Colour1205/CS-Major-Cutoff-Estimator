@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.log
+
+# Raw/intermediate Web Scraper exports and scrape-snippet caches — large,
+# reproducible from a fresh scrape + backend/scraper/convert_webscraper_export.py,
+# not needed at app runtime (only backend/data/*.csv are).
+/cs-cutoff-reddit*.csv
+backend/data/reddit_snippets*.json
