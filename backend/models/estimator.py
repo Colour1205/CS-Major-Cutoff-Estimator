@@ -75,22 +75,35 @@ class Estimator:
         return self._normal_cutoff_estimate(csc165_winter, out_of_stream_spots)
 
     def estimate_cutoff(self) -> float:
-        """Estimate the required csc148/csc165 average using the most recent data.
-
-        Uses historical averages and enrollment data to make a prediction.
+        """Estimate the required csc148/csc165 average for the most recent
+        (target) year — i.e. the highest year present in self.data. This is
+        meant to be a year that either hasn't happened yet or whose actual
+        cutoff isn't known yet; see estimate_service.load_merged_data for how
+        that target year gets chosen/forecasted.
 
         Key idea:
-        - estimate a cutoff for each year based on normal distribution of assumed course averages
-          and the number of students who applied to the CS major that year (from enrollment data)
-        - find how much error there is between the estimated cutoff and the actual cutoff for each year
-        - use the average error to adjust the most recent year's estimated cutoff to produce a final prediction
+        - estimate a raw cutoff for every OTHER year based on the seat-math +
+          distribution model, and see how far off each one was from that
+          year's real actual_cutoff
+        - average those errors, and apply the average as a correction to the
+          target year's raw estimate
+
+        The target year is deliberately excluded from the error-averaging
+        step even if it happens to have a known actual_cutoff on record
+        (e.g. when re-running this for a past/already-resolved year, such as
+        during backtesting) — otherwise the correction would be partly
+        fitted to the very answer it's supposed to be predicting.
         """
         years = sorted(self.data.keys())
         if not years:
             raise ValueError("no historical data to estimate from")
 
+        target_year = years[-1]
+
         errors = []
         for year in years:
+            if year == target_year:
+                continue  # never calibrate a year's estimate using its own known answer
             year_data = self.data[year]
             actual_cutoff = year_data.get(ACTUAL_CUTOFF)
             if actual_cutoff in (None, ""):
@@ -100,10 +113,9 @@ class Estimator:
 
         avg_error = sum(errors) / len(errors) if errors else 0.0
 
-        latest_year_data = self.data[years[-1]]
-        latest_estimate = self._year_estimate(latest_year_data)
+        target_estimate = self._year_estimate(self.data[target_year])
 
-        return latest_estimate - avg_error
+        return target_estimate - avg_error
 
     def estimate_safe_grade(self, actual_cutoff_by_year: dict, safe_grade_by_year: dict) -> float:
         """Estimate the "safe" grade for the most recent year.

@@ -8,7 +8,7 @@ A `year` labels an academic year by its **Fall start year**. `year = 2025` means
 
 ## Where the data comes from
 
-- **Enrollment counts** (`backend/data/enrollment_data.csv`) — fetched by `backend/services/enrollment.py` from the [UofT Enrollment Tracker data](https://github.com/ICPRplshelp/Enrollment-Data) (see Credits).
+- **Enrollment counts** (`backend/data/enrollment_data.csv`) — fetched by `backend/services/enrollment.py` from the [UofT Enrollment Tracker data](https://github.com/ICPRplshelp/Enrollment-Data) (see Credits). Any column still missing for the most recent year (e.g. `csc165_winter` before that Winter term's enrollment has settled) is filled in with a linear-trend forecast from prior years (`forecast_missing_columns`) rather than left blank — real data always overwrites a forecast once it exists. `backend/app.py` runs `start_background_refresh()` on startup, which re-fetches once a day in a background thread so forecasts get replaced with real numbers automatically as they appear.
 - **Historical cutoffs** (`backend/data/historical_averages.csv`) — the real minimum combined csc148/csc165 average that got someone in, per year. Mostly scraped from Reddit (`backend/scraper/reddit_scraper.py`): since Reddit blocks automated API access, posts/comments are collected via a browser extension (`tools/webscraper_sitemap.json` for Web Scraper, or `tools/reddit_snippet_collector.user.js` for Tampermonkey) instead, then sent to OpenAI to extract structured `{decision_year, csc148, csc165, average, program}` reports. The `program` field filters out Data Science specialist / CS minor reports, which have different cutoffs than the CS major. The year is then converted to our Fall-start convention in plain code (`year = decision_year - 1`), and the cutoff for a year is the lowest report remaining after dropping outliers via IQR. Years with too few reports to trust are filled in manually instead.
 
 ## How the estimate is computed
@@ -17,7 +17,7 @@ A `year` labels an academic year by its **Fall start year**. `year = 2025` means
 
 1. **Seat math**: `out_of_stream_spots = 500 - csc111_winter` (everyone in CSC111 instream is assumed admitted); `csc165_winter` is the out-of-stream applicant pool (CSC165 is Winter-only with lower enrollment than CSC148, so everyone in it is assumed to have already passed CSC148).
 2. **Distribution model**: the combined average is modeled as a **Beta distribution**, moment-matched to mean `(CSC148_AVG + CSC165_AVG) / 2` and std dev `CSC165_ESTIMATED_SD_PCT` (derived from CSC165 term-test stats — see `backend/config.py`). Beta over a plain normal because it's bounded to [0, 100] (an unbounded normal produced impossible >100% values during backtesting) and comes out naturally left-skewed toward higher marks, matching real grade distributions. The raw estimate is this distribution's inverse-CDF at the `out_of_stream_spots / csc165_winter` percentile.
-3. **Calibration**: the current year's raw estimate is adjusted by the average error (`estimate - actual`) across all years with a known actual cutoff.
+3. **Calibration**: the raw estimate for the target year (the most recent year in the data — normally the upcoming, not-yet-resolved cycle) is adjusted by the average error (`estimate - actual`) across every *other* year with a known actual cutoff. The target year is always excluded from its own calibration, even on the rare occasion it already has a known actual_cutoff (e.g. when re-running this against an already-resolved past year) — otherwise the correction would be partly fitted to the answer it's supposed to be predicting.
 
 ### Safe grade (`GET /api/estimate/safe`)
 
@@ -33,9 +33,9 @@ Validated with leave-one-out backtesting — each year predicted using only *pri
 |---|---|---|---|
 | 2023 | 78.0 | 78.28 | +0.28 |
 | 2024 | 85.0 | 91.20 | +6.20 |
-| 2025 | 89.0 | 83.34 | -5.66 |
+| 2025 | 83.0 | 83.34 | +0.34 |
 
-MAE: 4.05, RMSE: 4.85, Bias: +0.27
+MAE: 2.27. 2026 (the current target year) has no actual_cutoff yet, so it's not backtestable — `GET /api/estimate` shows its live prediction instead.
 
 ## Known limitations
 
@@ -43,6 +43,7 @@ MAE: 4.05, RMSE: 4.85, Bias: +0.27
 - 2024/2025 cutoffs are partly manual, not IQR-filtered from a large Reddit sample like earlier years.
 - Program classification (major vs. DS specialist vs. minor) isn't independently verified.
 - `TOTAL_CS_SPOTS = 500` is a constant across all years; may not reflect real year-to-year variation.
+- The target year's enrollment counts (forecasted or real-but-still-settling, e.g. before add/drop closes) can shift day to day — the daily background refresh keeps this current, but the live estimate isn't a fixed, final number until that year's enrollment actually settles.
 - `safe_grades.csv`'s 2021-2023 rows come from a large enough raw Reddit sample to bin into a real mode; 2024/2025 don't have that data, so those two rows are themselves *model-estimated* (that year's actual_cutoff + the average distance from 2021-2023) rather than independently observed — the safe-grade calibration is based on just 3 real data points and hasn't been backtested the way the cutoff model was.
 
 ## Credits

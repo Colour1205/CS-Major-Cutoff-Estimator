@@ -33,12 +33,16 @@ ENROLLMENT_DATA_BASE_URL = "https://raw.githubusercontent.com/ICPRplshelp/Enroll
 
 # Fall-Winter session codes to pull historical enrollment for.
 # Session code format: f"{start_year}9" (see that repo's README for the "5"/"9" convention).
-# 20269 (Fall-Winter 2026-2027) is excluded here since it hasn't started yet.
+# 2026 (Fall-Winter 2026-2027) is included even though it's only just
+# starting — its files may not exist yet (fetch_course_json handles a 404
+# per-course), and forecast_enrollment_year in enrollment.py covers the
+# columns (csc165_winter especially) that won't be real until much later.
 ENROLLMENT_SESSIONS = {
     2022: "20229",
     2023: "20239",
     2024: "20249",
     2025: "20259",
+    2026: "20269",
 }
 
 # CSV column name -> course file name within a session folder.
