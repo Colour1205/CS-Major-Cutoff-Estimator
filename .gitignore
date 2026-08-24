@@ -10,3 +10,9 @@ venv/
 # not needed at app runtime (only backend/data/*.csv are).
 /cs-cutoff-reddit*.csv
 backend/data/reddit_snippets*.json
+
+# Scraping implementation and browser-extension helper configs — kept local
+# only, not published. Requires backend/scraper/reddit_scraper.py and
+# backend/scraper/convert_webscraper_export.py to actually run.
+backend/scraper/
+tools/
