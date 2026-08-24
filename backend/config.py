@@ -54,3 +54,5 @@ ENROLLMENT_COURSES = {
 ENROLLMENT_DATA_CSV_PATH = "backend/data/enrollment_data.csv"
 
 HISTORICAL_AVERAGES_CSV_PATH = "backend/data/historical_averages.csv"
+
+SAFE_GRADE_CSV_PATH = "backend/data/safe_grades.csv"

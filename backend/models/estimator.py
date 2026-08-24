@@ -104,3 +104,34 @@ class Estimator:
         latest_estimate = self._year_estimate(latest_year_data)
 
         return latest_estimate - avg_error
+
+    def estimate_safe_grade(self, actual_cutoff_by_year: dict, safe_grade_by_year: dict) -> float:
+        """Estimate the "safe" grade for the most recent year.
+
+        The bare cutoff (estimate_cutoff) can be misleading: the person
+        right at the cutoff may have only gotten in because of a strong
+        supplementary application, so plenty of other people at that exact
+        grade get rejected. The "safe grade" instead tracks the grade
+        cluster reported most often among people who did get in (e.g. "low
+        90s" showing up repeatedly) — a much safer bet than the bare
+        minimum.
+
+        For every year with both an actual_cutoff and a safe_grade on
+        record, computes distance = safe_grade - actual_cutoff, averages
+        those distances, then adds that average on top of
+        estimate_cutoff()'s calibrated prediction for the most recent year.
+
+        actual_cutoff_by_year/safe_grade_by_year are passed in directly
+        (rather than read from self.data) since the years with enough
+        scraped reports to trust a safe-grade estimate don't necessarily
+        overlap with the years that have enrollment data in self.data.
+        """
+        distances = []
+        for year, safe_grade in safe_grade_by_year.items():
+            actual_cutoff = actual_cutoff_by_year.get(year)
+            if actual_cutoff in (None, ""):
+                continue
+            distances.append(float(safe_grade) - float(actual_cutoff))
+
+        avg_distance = sum(distances) / len(distances) if distances else 0.0
+        return self.estimate_cutoff() + avg_distance
