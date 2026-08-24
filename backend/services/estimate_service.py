@@ -1,4 +1,5 @@
-# Combines historical average data with enrollment seat math to predict the cutoff.
+# Service layer: loads enrollment + historical data and runs Estimator to
+# produce the cutoff and safe-grade estimates the API exposes.
 import csv
 
 from backend.config import ENROLLMENT_DATA_CSV_PATH, HISTORICAL_AVERAGES_CSV_PATH, SAFE_GRADE_CSV_PATH

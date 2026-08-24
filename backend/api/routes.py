@@ -1,7 +1,7 @@
 # API endpoints — /api/estimate, /api/estimate/safe.
 from flask import Blueprint, jsonify
 
-from backend.services.cutoff_calculator import get_latest_estimate, get_latest_safe_grade_estimate
+from backend.services.estimate_service import get_latest_estimate, get_latest_safe_grade_estimate
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 

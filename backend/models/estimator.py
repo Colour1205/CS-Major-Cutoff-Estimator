@@ -4,7 +4,7 @@ from scipy.stats import beta as beta_dist
 from backend.config import CSC148_AVG, CSC165_AVG, CSC165_ESTIMATED_SD_PCT, TOTAL_CS_SPOTS
 
 # Keys expected in each year's merged data dict (enrollment_data.csv columns
-# plus historical_averages.csv columns — see enrollment.py / cutoff_calculator.py).
+# plus historical_averages.csv columns — see enrollment.py / estimate_service.py).
 CSC111_WINTER = "csc111_winter"
 CSC165_WINTER = "csc165_winter"
 ACTUAL_CUTOFF = "actual_cutoff"
