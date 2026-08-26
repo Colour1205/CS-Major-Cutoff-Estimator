@@ -19,11 +19,16 @@ def create_app() -> Flask:
 
 
 if __name__ == "__main__":
+    from backend.services.backtest import start_background_backtest_refresh
     from backend.services.enrollment import start_background_refresh
 
     # Keeps enrollment_data.csv current without a manual re-run — picks up
     # newly-published real data (replacing any forecasted columns) once a
     # day. use_reloader=False so Flask's debug reloader doesn't spawn a
-    # second process that starts a duplicate refresh thread.
+    # second process that starts duplicate refresh threads.
     start_background_refresh()
+    # Backtest is pure computation (no network calls), so it's cheap to
+    # recompute more often — picks up edits to historical_averages.csv /
+    # safe_grades.csv or newly-arrived enrollment data.
+    start_background_backtest_refresh()
     create_app().run(debug=True, port=5000, use_reloader=False)

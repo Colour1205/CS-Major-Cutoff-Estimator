@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "year": 2023,
+      "actual": 78.0,
+      "predicted": 78.28,
+      "error": 0.28
+    },
+    {
+      "year": 2024,
+      "actual": 85.0,
+      "predicted": 91.2,
+      "error": 6.2
+    },
+    {
+      "year": 2025,
+      "actual": 83.0,
+      "predicted": 83.34,
+      "error": 0.34
+    }
+  ],
+  "summary": {
+    "n": 3,
+    "mae": 2.27,
+    "rmse": 3.59,
+    "bias": 2.27
+  }
+}

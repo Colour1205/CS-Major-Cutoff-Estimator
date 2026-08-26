@@ -37,6 +37,17 @@ Validated with leave-one-out backtesting — each year predicted using only *pri
 
 MAE: 2.27. 2026 (the current target year) has no actual_cutoff yet, so it's not backtestable — `GET /api/estimate` shows its live prediction instead.
 
+This runs as `backend/services/backtest.py`, cached to `backend/data/backtest_results.json` and served via `GET /api/backtest` — `backend/app.py` recomputes it hourly in the background (cheap, since it's pure computation with no network calls) so it stays in sync with any edits to the underlying data.
+
+## API summary
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/estimate` | `{year, estimated_cutoff}` for the target year |
+| `GET /api/estimate/safe` | `{year, estimated_safe_grade}` for the target year |
+| `GET /api/history` | `[{year, actual_cutoff, safe_grade}, ...]` — for the frontend chart |
+| `GET /api/backtest` | Cached leave-one-out backtest results + summary stats |
+
 ## Known limitations
 
 - Only 3-4 years of calibration data — the correction is itself noisy.

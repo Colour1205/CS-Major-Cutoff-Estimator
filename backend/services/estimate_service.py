@@ -74,3 +74,27 @@ def get_latest_safe_grade_estimate(
         "year": latest_year,
         "estimated_safe_grade": round(estimated_safe_grade, 2),
     }
+
+
+def get_history(
+    averages_path: str = HISTORICAL_AVERAGES_CSV_PATH,
+    safe_grade_path: str = SAFE_GRADE_CSV_PATH,
+) -> list[dict]:
+    """Per-year actual_cutoff + safe_grade, for charting historical trends.
+
+    Not gated on enrollment data being present (unlike load_merged_data) —
+    this is just the historical record, which the seat-math model doesn't
+    need to exist.
+    """
+    averages_by_year = _load_csv_by_year(averages_path)
+    safe_by_year = _load_csv_by_year(safe_grade_path)
+    years = sorted(set(averages_by_year) | set(safe_by_year))
+
+    return [
+        {
+            "year": year,
+            "actual_cutoff": float(averages_by_year[year]["actual_cutoff"]) if year in averages_by_year else None,
+            "safe_grade": float(safe_by_year[year]["safe_grade"]) if year in safe_by_year else None,
+        }
+        for year in years
+    ]

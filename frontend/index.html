@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <link rel="stylesheet" href="css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <header>
     <a>UofT CS Major Out of Stream Cutoff Estimator</a>
 </header>
@@ -13,6 +14,34 @@
         <div id="cutoff-grade-wrapper" class="inner-wrapper">
             <h3>Estimated cutoff: </h3>
             <h1 id="cutoff-grade">49</h1>
+        </div>
+        <!--include chart here for historical cutoff and safe grades in the same graph-->
+        <div id="history-chart-wrapper" class="inner-wrapper">
+            <h3>Historical cutoff vs. safe grade</h3>
+            <canvas id="history-chart" width="500" height="300"></canvas>
+        </div>
+        <!--include backtested result of this estimator here-->
+        <div id="backtest-wrapper" class="inner-wrapper">
+            <h3>Backtest accuracy</h3>
+            <table id="backtest-table">
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th>Actual</th>
+                        <th>Predicted</th>
+                        <th>Error</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <p id="backtest-summary"></p>
+        </div>
+        <div id="information-wrapper" class="inner-wrapper">
+            <b>I made this so you have rough idea what the estimates will be. Since supplementary application isn't
+                accounted in this estimate, make sure to also have a decent sup app.</b>
+            <b>For more information on how this is calculate, visit the github at </b>
+            <a
+                href="https://github.com/Colour1205/CS-Major-Cutoff-Estimator">https://github.com/Colour1205/CS-Major-Cutoff-Estimator</a>
         </div>
     </div>
     <script src="js/main.js"></script>
