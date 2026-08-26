@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <header>
@@ -9,11 +11,11 @@
     <div id="outer-wrapper">
         <div id="safe-grade-wrapper" class="inner-wrapper">
             <h3>Estimated safe grade: </h3>
-            <h1 id="safe-grade">31</h1>
+            <h1 id="safe-grade">—</h1>
         </div>
         <div id="cutoff-grade-wrapper" class="inner-wrapper">
             <h3>Estimated cutoff: </h3>
-            <h1 id="cutoff-grade">49</h1>
+            <h1 id="cutoff-grade">—</h1>
         </div>
         <div id="charts-wrapper">
             <!--include chart here for historical cutoff and safe grades in the same graph-->
@@ -27,7 +29,7 @@
                 <table id="backtest-table">
                     <thead>
                         <tr>
-                            <th>Year</th>
+                            <th>School year</th>
                             <th>Actual</th>
                             <th>Predicted</th>
                             <th>Error</th>
@@ -37,6 +39,7 @@
                 </table>
             </div>
         </div>
+        <button id="submit-mark-btn" type="button">Submit your mark</button>
         <div id="information-wrapper" class="inner-wrapper">
             <b>I made this so you have rough idea what the estimates will be. Since supplementary application isn't
                 accounted in this estimate, make sure to also have a decent sup app.</b>
@@ -45,5 +48,24 @@
                 href="https://github.com/Colour1205/CS-Major-Cutoff-Estimator">https://github.com/Colour1205/CS-Major-Cutoff-Estimator</a>
         </div>
     </div>
+
+    <div id="submit-mark-modal-backdrop">
+        <div id="submit-mark-modal">
+            <h3>Submit your mark</h3>
+            <p class="modal-hint">Reviewed by me before it's added :) pending submissions never affect the estimate.</p>
+            <form id="submit-mark-form">
+                <label>School year <select id="submit-year" required></select></label>
+                <label>CSC148 <input type="number" id="submit-csc148" step="0.1"></label>
+                <label>CSC165 <input type="number" id="submit-csc165" step="0.1"></label>
+                <label>Average <input type="number" id="submit-average" step="0.1"></label>
+                <p id="submit-mark-error" class="error"></p>
+                <div class="modal-actions">
+                    <button type="button" id="submit-mark-cancel">Cancel</button>
+                    <button type="submit">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="js/main.js"></script>
 </body>

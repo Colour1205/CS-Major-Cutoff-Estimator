@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin login</title>
+    <style>
+        body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #fff; color: #222; }
+        form { display: flex; flex-direction: column; gap: 12px; width: 240px; }
+        input, button { padding: 8px; font-size: 14px; }
+        .error { color: #c0392b; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <form method="POST">
+        <h2>Admin login</h2>
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <input type="password" name="password" placeholder="Password" autofocus>
+        <button type="submit">Log in</button>
+    </form>
+</body>
+</html>

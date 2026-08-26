@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin dashboard</title>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 24px auto; padding: 0 16px; background: #fff; color: #222; }
+        h2 { margin-top: 40px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        input[type="number"], input[type="text"] { width: 90px; padding: 4px; }
+        textarea { width: 100%; height: 140px; font-family: monospace; padding: 8px; box-sizing: border-box; }
+        button { padding: 6px 14px; cursor: pointer; }
+        .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .server-info { display: flex; gap: 24px; flex-wrap: wrap; }
+        .server-info div { background: #f4f4f4; padding: 8px 14px; border-radius: 6px; }
+        #extract-preview table { margin-top: 12px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <h1>Admin dashboard</h1>
+        <form method="POST" action="{{ url_for('admin.logout') }}">
+            <button type="submit">Log out</button>
+        </form>
+    </div>
+
+    <h2>Server info</h2>
+    <div class="server-info">
+        <div>Enrollment years: {{ server_info.enrollment_years }}</div>
+        <div>Pending submissions: {{ server_info.pending_count }}</div>
+        <div>Approved: {{ server_info.approved_count }}</div>
+        <div>Rejected: {{ server_info.rejected_count }}</div>
+        <div>Total submissions: {{ server_info.total_submissions }}</div>
+        <div>Scraped grade records: {{ server_info.scraped_grade_count }}</div>
+    </div>
+
+    <h2>Pending submissions</h2>
+    {% if pending %}
+    <table>
+        <tr><th>School year</th><th>CSC148</th><th>CSC165</th><th>Average</th><th>Submitted</th><th></th></tr>
+        {% for s in pending %}
+        <tr>
+            <td>{{ s.year }}-{{ (s.year + 1) % 100 }}</td>
+            <td>{{ s.csc148 if s.csc148 is not none else "" }}</td>
+            <td>{{ s.csc165 if s.csc165 is not none else "" }}</td>
+            <td>{{ s.average if s.average is not none else "" }}</td>
+            <td>{{ s.submitted_at }}</td>
+            <td>
+                <form style="display:inline" method="POST" action="{{ url_for('admin.approve_submission', submission_id=s.id) }}">
+                    <button type="submit">Approve</button>
+                </form>
+                <form style="display:inline" method="POST" action="{{ url_for('admin.reject_submission', submission_id=s.id) }}">
+                    <button type="submit">Reject</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>No pending submissions.</p>
+    {% endif %}
+
+    <h2>Manually edit a year</h2>
+    <form method="POST" action="{{ url_for('admin.manual_edit') }}" class="row">
+        <label>School year
+            <select name="year" required>
+                {% for y in range(min_school_year, max_school_year + 1) %}
+                <option value="{{ y }}" {{ "selected" if y == max_school_year }}>{{ y }}-{{ (y + 1) % 100 }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Actual cutoff <input type="text" name="actual_cutoff"></label>
+        <label>Safe grade <input type="text" name="safe_grade"></label>
+        <button type="submit">Save</button>
+    </form>
+    <p style="font-size: 13px; color: #666;">"Records" = individual reports in the database for that year. When &gt; 0, the values below come from those records, not the manual-edit fields (editing a year with existing records has no effect until its records are cleared).</p>
+    <table>
+        <tr><th>School year</th><th>Actual cutoff</th><th>Safe grade</th><th>Records</th></tr>
+        {% for row in year_rows %}
+        <tr><td>{{ row.year }}-{{ (row.year + 1) % 100 }}</td><td>{{ row.actual_cutoff }}</td><td>{{ row.safe_grade }}</td><td>{{ row.record_count }}</td></tr>
+        {% endfor %}
+    </table>
+
+    <h2>Extract from pasted text (AI)</h2>
+    <p>Paste a Reddit thread or similar — OpenAI extracts individual grade reports for you to review before adding.</p>
+    <textarea id="extract-text" placeholder="Paste text here..."></textarea>
+    <div class="row">
+        <button id="extract-btn" type="button">Extract</button>
+        <span id="extract-status"></span>
+    </div>
+    <div id="extract-preview"></div>
+
+    <script>
+        const extractBtn = document.getElementById("extract-btn");
+        const statusEl = document.getElementById("extract-status");
+        const previewEl = document.getElementById("extract-preview");
+
+        extractBtn.addEventListener("click", async () => {
+            const text = document.getElementById("extract-text").value.trim();
+            if (!text) return;
+            statusEl.textContent = "Extracting...";
+            previewEl.innerHTML = "";
+            try {
+                const response = await fetch("{{ url_for('admin.extract') }}", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text }),
+                });
+                const data = await response.json();
+                if (data.error) { statusEl.textContent = data.error; return; }
+                statusEl.textContent = `${data.reports.length} report(s) found`;
+                renderPreview(data.reports);
+            } catch (err) {
+                statusEl.textContent = "Failed to extract.";
+                console.error(err);
+            }
+        });
+
+        function renderPreview(reports) {
+            if (!reports.length) { previewEl.innerHTML = "<p>No reports found.</p>"; return; }
+
+            let html = "<table><tr><th>Year</th><th>CSC148</th><th>CSC165</th><th>Average</th><th>Program</th><th>Include?</th></tr>";
+            reports.forEach((r, i) => {
+                html += `<tr>
+                    <td><input type="number" data-i="${i}" data-field="year" value="${r.year ?? ""}"></td>
+                    <td><input type="number" data-i="${i}" data-field="csc148" value="${r.csc148 ?? ""}"></td>
+                    <td><input type="number" data-i="${i}" data-field="csc165" value="${r.csc165 ?? ""}"></td>
+                    <td><input type="number" data-i="${i}" data-field="average" value="${r.average ?? ""}"></td>
+                    <td>${r.program ?? ""}</td>
+                    <td><input type="checkbox" data-i="${i}" data-field="include" checked></td>
+                </tr>`;
+            });
+            html += "</table><button id='confirm-btn' type='button'>Add checked reports to database</button>";
+            previewEl.innerHTML = html;
+
+            document.getElementById("confirm-btn").addEventListener("click", async () => {
+                const rows = previewEl.querySelectorAll("tr");
+                const toInsert = [];
+                reports.forEach((r, i) => {
+                    const include = previewEl.querySelector(`input[data-i="${i}"][data-field="include"]`).checked;
+                    if (!include) return;
+                    const val = (field) => {
+                        const el = previewEl.querySelector(`input[data-i="${i}"][data-field="${field}"]`);
+                        return el.value === "" ? null : parseFloat(el.value);
+                    };
+                    toInsert.push({
+                        year: val("year"),
+                        csc148: val("csc148"),
+                        csc165: val("csc165"),
+                        average: val("average"),
+                        program: r.program,
+                    });
+                });
+
+                statusEl.textContent = "Saving...";
+                const response = await fetch("{{ url_for('admin.extract_confirm') }}", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reports: toInsert }),
+                });
+                const data = await response.json();
+                statusEl.textContent = `Added ${data.inserted} report(s). Reload to see updated table.`;
+            });
+        }
+    </script>
+</body>
+</html>

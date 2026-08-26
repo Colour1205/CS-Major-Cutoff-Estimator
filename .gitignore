@@ -8,3 +8,8 @@ venv/
 backend/data/reddit_snippets*.json
 backend/scraper/
 tools/
+
+# Live runtime state (pending/approved submissions) -- not meant to be
+# committed repeatedly. The historical scraped_grades seed data is instead
+# reproducible via backend/services/migrate_scraped_grades.py.
+backend/data/grades.db

@@ -62,3 +62,5 @@ HISTORICAL_AVERAGES_CSV_PATH = "backend/data/historical_averages.csv"
 SAFE_GRADE_CSV_PATH = "backend/data/safe_grades.csv"
 
 BACKTEST_RESULTS_JSON_PATH = "backend/data/backtest_results.json"
+
+GRADES_DB_PATH = "backend/data/grades.db"
