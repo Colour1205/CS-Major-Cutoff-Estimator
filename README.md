@@ -15,7 +15,7 @@ A `year` labels an academic year by its **Fall start year**. `year = 2025` means
 
 `backend/models/estimator.py`:
 
-1. **Seat math**: `out_of_stream_spots = 500 - csc111_winter` (everyone in CSC111 instream is assumed admitted); `csc165_winter` is the out-of-stream applicant pool (CSC165 is Winter-only with lower enrollment than CSC148, so everyone in it is assumed to have already passed CSC148).
+1. **Seat math (deliberately worst-case)**: `out_of_stream_spots = 500 - csc111_winter` assumes *everyone* in CSC111 instream is admitted, and `csc165_winter` (the out-of-stream applicant pool) assumes *everyone* in it applies for CS. Both assumptions maximize assumed competition for the remaining spots, so the raw estimate leans toward the harder end of what could actually happen rather than the average case — it's meant to be a safe number to plan around, not a most-likely guess. This is why the estimate is expected to sit *above* the real cutoff more often than not (see the positive bias in Backtesting below), not a sign the model is broken.
 2. **Distribution model**: the combined average is modeled as a **Beta distribution**, moment-matched to mean `(CSC148_AVG + CSC165_AVG) / 2` and std dev `CSC165_ESTIMATED_SD_PCT` (derived from CSC165 term-test stats — see `backend/config.py`). Beta over a plain normal because it's bounded to [0, 100] (an unbounded normal produced impossible >100% values during backtesting) and comes out naturally left-skewed toward higher marks, matching real grade distributions. The raw estimate is this distribution's inverse-CDF at the `out_of_stream_spots / csc165_winter` percentile.
 3. **Calibration**: the raw estimate for the target year (the most recent year in the data — normally the upcoming, not-yet-resolved cycle) is adjusted by the average error (`estimate - actual`) across every *other* year with a known actual cutoff. The target year is always excluded from its own calibration, even on the rare occasion it already has a known actual_cutoff (e.g. when re-running this against an already-resolved past year) — otherwise the correction would be partly fitted to the answer it's supposed to be predicting.
 
@@ -35,7 +35,9 @@ Validated with leave-one-out backtesting — each year predicted using only *pri
 | 2024 | 85.0 | 91.20 | +6.20 |
 | 2025 | 83.0 | 83.34 | +0.34 |
 
-MAE: 2.27. 2026 (the current target year) has no actual_cutoff yet, so it's not backtestable — `GET /api/estimate` shows its live prediction instead.
+MAE: 2.27, Bias: +2.27 — every single prediction so far has come in at or above the actual cutoff, never below. That's the expected shape of a worst-case model (see Seat math above), not noise: since the underlying seat-math assumptions already lean toward maximum competition, a consistent positive bias is what "working as intended" looks like, whereas a negative bias (underselling how hard a year was) would be the actual red flag.
+
+2026 (the current target year) has no actual_cutoff yet, so it's not backtestable — `GET /api/estimate` shows its live prediction instead.
 
 This runs as `backend/services/backtest.py`, cached to `backend/data/backtest_results.json` and served via `GET /api/backtest` — `backend/app.py` recomputes it hourly in the background (cheap, since it's pure computation with no network calls) so it stays in sync with any edits to the underlying data.
 

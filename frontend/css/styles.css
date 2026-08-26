@@ -11,3 +11,30 @@
     align-items: center;
     min-height: 100vh;
 }
+
+#charts-wrapper {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 24px;
+}
+
+#history-chart-wrapper {
+    width: 400px;
+}
+
+#backtest-wrapper {
+    width: 300px;
+}
+
+#backtest-table {
+    border-collapse: collapse;
+}
+
+#backtest-table th,
+#backtest-table td {
+    border: 1px solid #999;
+    padding: 4px 10px;
+}

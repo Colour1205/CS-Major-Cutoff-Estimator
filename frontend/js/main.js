@@ -81,6 +81,15 @@ async function loadHistoryChart() {
             },
             options: {
                 scales: { y: { title: { display: true, text: "Average (%)" } } },
+                // The dashed "Estimated ..." datasets are visible on the
+                // chart, but their own legend entries are redundant — the
+                // dashed style already reads as "estimate" once paired with
+                // the matching solid-line color.
+                plugins: {
+                    legend: {
+                        labels: { filter: (item) => !item.text.startsWith("Estimated") },
+                    },
+                },
             },
         });
     } catch (err) {
@@ -90,11 +99,10 @@ async function loadHistoryChart() {
 
 async function loadBacktestTable() {
     const tbody = document.querySelector("#backtest-table tbody");
-    const summaryEl = document.getElementById("backtest-summary");
     try {
         const response = await fetch(`${API_BASE_URL}/api/backtest`);
         if (!response.ok) throw new Error(`request failed: ${response.status}`);
-        const { results, summary } = await response.json();
+        const { results } = await response.json();
 
         tbody.innerHTML = "";
         for (const row of results) {
@@ -103,12 +111,7 @@ async function loadBacktestTable() {
                 `<td>${row.predicted.toFixed(2)}</td><td>${row.error > 0 ? "+" : ""}${row.error.toFixed(2)}</td>`;
             tbody.appendChild(tr);
         }
-
-        summaryEl.textContent = summary.n
-            ? `n=${summary.n}, MAE=${summary.mae}, RMSE=${summary.rmse}, Bias=${summary.bias > 0 ? "+" : ""}${summary.bias}`
-            : "Not enough resolved years yet to backtest.";
     } catch (err) {
-        summaryEl.textContent = "Failed to load backtest results.";
         console.error("Failed to load /api/backtest:", err);
     }
 }
