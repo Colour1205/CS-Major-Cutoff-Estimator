@@ -159,7 +159,7 @@ def extract_confirm():
     reports = request.json.get("reports", [])
     inserted = 0
     for r in reports:
-        if r.get("program") not in (None, "cs_major_or_specialist"):
+        if r.get("program") not in (None, "cs_major"):
             continue  # admin left a non-major report in the list -- skip it
         if r.get("year") is None:
             continue
