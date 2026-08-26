@@ -64,3 +64,11 @@ SAFE_GRADE_CSV_PATH = "backend/data/safe_grades.csv"
 BACKTEST_RESULTS_JSON_PATH = "backend/data/backtest_results.json"
 
 GRADES_DB_PATH = "backend/data/grades.db"
+
+# A year's cutoff/safe grade only switches over to being computed from its
+# individual grades.db records (scraped_grades + approved submissions,
+# combined) once there are at least this many of them. Below that, a
+# handful of new records would otherwise completely replace an established
+# manual/forecast value with a tiny, unrepresentative sample -- e.g. a
+# single approved submission becoming the entire basis for a year's cutoff.
+MIN_RECORDS_TO_OVERRIDE = 10

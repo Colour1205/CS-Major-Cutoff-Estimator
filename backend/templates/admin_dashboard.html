@@ -74,7 +74,7 @@
         <label>Safe grade <input type="text" name="safe_grade"></label>
         <button type="submit">Save</button>
     </form>
-    <p style="font-size: 13px; color: #666;">"Records" = individual reports in the database for that year. When &gt; 0, the values below come from those records, not the manual-edit fields (editing a year with existing records has no effect until its records are cleared).</p>
+    <p style="font-size: 13px; color: #666;">"Records" = individual reports in the database for that year (scraped + approved submissions, combined). Once a year reaches {{ min_records_to_override }}+ records, the values below come from those records instead of the manual-edit fields below — editing a year at or past that threshold has no effect until its record count drops back under it. Below the threshold, records are ignored entirely and the manual-edit value is used, so a handful of new submissions can't swing an established year off a tiny, unrepresentative sample.</p>
     <table>
         <tr><th>School year</th><th>Actual cutoff</th><th>Safe grade</th><th>Records</th></tr>
         {% for row in year_rows %}
@@ -92,6 +92,12 @@
     <div id="extract-preview"></div>
 
     <script>
+        const MIN_SCHOOL_YEAR = {{ min_school_year }};
+        const MAX_SCHOOL_YEAR = {{ max_school_year }};
+        function formatSchoolYear(year) {
+            return `${year}-${String(year + 1).slice(-2)}`;
+        }
+
         const extractBtn = document.getElementById("extract-btn");
         const statusEl = document.getElementById("extract-status");
         const previewEl = document.getElementById("extract-preview");
@@ -120,10 +126,23 @@
         function renderPreview(reports) {
             if (!reports.length) { previewEl.innerHTML = "<p>No reports found.</p>"; return; }
 
-            let html = "<table><tr><th>Year</th><th>CSC148</th><th>CSC165</th><th>Average</th><th>Program</th><th>Include?</th></tr>";
+            // Extend the lower bound if an extracted report is older than
+            // our usual range (e.g. an old thread turns up in a scrape) so
+            // it still gets an option, rather than silently losing the value.
+            const minYear = Math.min(MIN_SCHOOL_YEAR, ...reports.map((r) => r.year ?? MIN_SCHOOL_YEAR));
+
+            function yearOptions(selected) {
+                let opts = "";
+                for (let y = minYear; y <= MAX_SCHOOL_YEAR; y++) {
+                    opts += `<option value="${y}" ${y === selected ? "selected" : ""}>${formatSchoolYear(y)}</option>`;
+                }
+                return opts;
+            }
+
+            let html = "<table><tr><th>School year</th><th>CSC148</th><th>CSC165</th><th>Average</th><th>Program</th><th>Include?</th></tr>";
             reports.forEach((r, i) => {
                 html += `<tr>
-                    <td><input type="number" data-i="${i}" data-field="year" value="${r.year ?? ""}"></td>
+                    <td><select data-i="${i}" data-field="year">${yearOptions(r.year)}</select></td>
                     <td><input type="number" data-i="${i}" data-field="csc148" value="${r.csc148 ?? ""}"></td>
                     <td><input type="number" data-i="${i}" data-field="csc165" value="${r.csc165 ?? ""}"></td>
                     <td><input type="number" data-i="${i}" data-field="average" value="${r.average ?? ""}"></td>
@@ -141,7 +160,7 @@
                     const include = previewEl.querySelector(`input[data-i="${i}"][data-field="include"]`).checked;
                     if (!include) return;
                     const val = (field) => {
-                        const el = previewEl.querySelector(`input[data-i="${i}"][data-field="${field}"]`);
+                        const el = previewEl.querySelector(`[data-i="${i}"][data-field="${field}"]`);
                         return el.value === "" ? null : parseFloat(el.value);
                     };
                     toInsert.push({

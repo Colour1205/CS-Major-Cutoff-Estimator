@@ -2,7 +2,12 @@
 # produce the cutoff and safe-grade estimates the API exposes.
 import csv
 
-from backend.config import ENROLLMENT_DATA_CSV_PATH, HISTORICAL_AVERAGES_CSV_PATH, SAFE_GRADE_CSV_PATH
+from backend.config import (
+    ENROLLMENT_DATA_CSV_PATH,
+    HISTORICAL_AVERAGES_CSV_PATH,
+    MIN_RECORDS_TO_OVERRIDE,
+    SAFE_GRADE_CSV_PATH,
+)
 from backend.models import grade_stats
 from backend.models.estimator import Estimator
 from backend.services.submissions import get_approved_grades_by_year
@@ -16,19 +21,19 @@ def _load_csv_by_year(path: str) -> dict[int, dict]:
 def _effective_values(year: int, averages_by_year: dict, safe_by_year: dict, approved_by_year: dict) -> dict:
     """A year's effective cutoff/safe grade.
 
-    When the database has any individual records for a year (scraped
-    historical reports + admin-approved submissions — see
-    submissions.get_approved_grades_by_year), those records are
+    Once a year has at least MIN_RECORDS_TO_OVERRIDE individual records
+    (scraped historical reports + admin-approved submissions, combined —
+    see submissions.get_approved_grades_by_year), those records become
     authoritative: cutoff/safe grade are computed directly from that full
     list via the same IQR-cutoff / mode-binning logic the Reddit scraper
-    uses (grade_stats). The historical_averages.csv/safe_grades.csv scalar
-    is only a *fallback* for a year with no granular records at all yet
-    (e.g. 2024/2025 today) — once real records exist for a year, the CSV
-    scalar for that year is no longer consulted, avoiding double-counting
-    a value that's now redundant with its own constituent data.
+    uses (grade_stats). Below that threshold, the records are ignored
+    entirely and historical_averages.csv/safe_grades.csv's scalar is used
+    instead — a handful of new records (even just one) would otherwise
+    completely replace an established manual/forecast value with a tiny,
+    unrepresentative sample.
     """
     records = approved_by_year.get(year, [])
-    if records:
+    if len(records) >= MIN_RECORDS_TO_OVERRIDE:
         return {
             "actual_cutoff": grade_stats.estimate_cutoff(records),
             "safe_grade": grade_stats.safe_grade(records),

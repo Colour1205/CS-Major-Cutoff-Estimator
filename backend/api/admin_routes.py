@@ -11,7 +11,7 @@ from backend.services import manual_data, submissions
 from backend.services.ai_extraction import extract_reports_from_text
 from backend.services.backtest import write_backtest_results
 from backend.services.estimate_service import _load_csv_by_year, get_history
-from backend.config import ENROLLMENT_DATA_CSV_PATH
+from backend.config import ENROLLMENT_DATA_CSV_PATH, MIN_RECORDS_TO_OVERRIDE
 from backend.utils import MIN_SCHOOL_YEAR, current_school_year_start
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -89,6 +89,7 @@ def dashboard():
         server_info=server_info,
         min_school_year=MIN_SCHOOL_YEAR,
         max_school_year=current_school_year_start(),
+        min_records_to_override=MIN_RECORDS_TO_OVERRIDE,
     )
 
 
