@@ -42,9 +42,15 @@ def init_db(path: str = GRADES_DB_PATH) -> None:
                 csc165 REAL,
                 average REAL,
                 status TEXT NOT NULL DEFAULT 'pending',
-                submitted_at TEXT NOT NULL
+                submitted_at TEXT NOT NULL,
+                ip_hash TEXT
             )
         """)
+        # ip_hash was added after this table already existed for some
+        # installs -- ALTER TABLE ADD COLUMN if an older DB is missing it.
+        existing_columns = {row[1] for row in conn.execute("PRAGMA table_info(submissions)")}
+        if "ip_hash" not in existing_columns:
+            conn.execute("ALTER TABLE submissions ADD COLUMN ip_hash TEXT")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS scraped_grades (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,10 +68,16 @@ def create_submission(
     csc148: Optional[float],
     csc165: Optional[float],
     average: Optional[float],
+    ip_hash: Optional[str] = None,
     path: str = GRADES_DB_PATH,
 ) -> int:
     """Insert a new submission as pending. Never touches the live estimate —
     only an admin-approved submission does (see estimate_service).
+
+    ip_hash is a salted hash of the submitter's IP (see
+    backend.api.routes.hash_ip) -- never the raw IP itself -- so the admin
+    dashboard can flag "these N pending submissions came from the same
+    source" without this app ever persisting anyone's actual address.
     """
     if report_grade(csc148, csc165, average) is None:
         raise ValueError("submission needs either `average`, or both `csc148` and `csc165`")
@@ -73,9 +85,9 @@ def create_submission(
     init_db(path)
     with _connect(path) as conn:
         cursor = conn.execute(
-            "INSERT INTO submissions (year, csc148, csc165, average, status, submitted_at) "
-            "VALUES (?, ?, ?, ?, 'pending', ?)",
-            (year, csc148, csc165, average, datetime.now(timezone.utc).isoformat()),
+            "INSERT INTO submissions (year, csc148, csc165, average, status, submitted_at, ip_hash) "
+            "VALUES (?, ?, ?, ?, 'pending', ?, ?)",
+            (year, csc148, csc165, average, datetime.now(timezone.utc).isoformat(), ip_hash),
         )
         return cursor.lastrowid
 
@@ -91,7 +103,7 @@ def create_approved_submission(
     (e.g. the AI-paste-extraction tool), which doesn't need a review queue
     since the admin is the one who just reviewed it.
     """
-    submission_id = create_submission(year, csc148, csc165, average, path)
+    submission_id = create_submission(year, csc148, csc165, average, ip_hash=None, path=path)
     update_submission_status(submission_id, "approved", path)
     return submission_id
 

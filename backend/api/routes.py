@@ -1,5 +1,8 @@
 # API endpoints — /api/estimate, /api/estimate/safe, /api/history, /api/backtest, /api/submissions.
-from flask import Blueprint, jsonify, request
+import hashlib
+import hmac
+
+from flask import Blueprint, current_app, jsonify, request
 
 from backend.services.backtest import load_backtest_results
 from backend.services.estimate_service import get_history, get_latest_estimate, get_latest_safe_grade_estimate
@@ -7,6 +10,19 @@ from backend.services.submissions import create_submission
 from backend.utils import MIN_SCHOOL_YEAR, current_school_year_start
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+
+
+def hash_ip(ip: str) -> str:
+    """A one-way, salted hash of a submitter's IP -- never the IP itself.
+
+    Salted with the app's SECRET_KEY so the hash can't be reversed back to
+    an actual address even if the database were exposed; it only lets the
+    admin dashboard tell "these submissions came from the same source",
+    not who that source is.
+    """
+    salt = current_app.secret_key
+    salt_bytes = salt.encode() if isinstance(salt, str) else salt
+    return hmac.new(salt_bytes, ip.encode(), hashlib.sha256).hexdigest()[:16]
 
 
 @api_bp.route("/estimate", methods=["GET"])
@@ -87,8 +103,10 @@ def submit_grade():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
+    ip_hash = hash_ip(request.remote_addr) if request.remote_addr else None
+
     try:
-        submission_id = create_submission(year, csc148, csc165, average)
+        submission_id = create_submission(year, csc148, csc165, average, ip_hash=ip_hash)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 

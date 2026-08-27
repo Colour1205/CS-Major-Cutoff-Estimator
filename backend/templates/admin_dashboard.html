@@ -36,16 +36,18 @@
     </div>
 
     <h2>Pending submissions</h2>
+    <p style="font-size: 13px; color: #666;">"Same source" flags submissions sharing a salted hash of the submitter's IP — never the IP itself — so you can spot a spam burst without this app ever storing anyone's actual address.</p>
     {% if pending %}
     <table>
-        <tr><th>School year</th><th>CSC148</th><th>CSC165</th><th>Average</th><th>Submitted</th><th></th></tr>
+        <tr><th>School year</th><th>CSC148</th><th>CSC165</th><th>Average</th><th>Submitted</th><th>Same source</th><th></th></tr>
         {% for s in pending %}
-        <tr>
+        <tr{% if s.same_source_count > 0 %} style="background: #fff3cd;"{% endif %}>
             <td>{{ s.year }}-{{ (s.year + 1) % 100 }}</td>
             <td>{{ s.csc148 if s.csc148 is not none else "" }}</td>
             <td>{{ s.csc165 if s.csc165 is not none else "" }}</td>
             <td>{{ s.average if s.average is not none else "" }}</td>
             <td>{{ s.submitted_at }}</td>
+            <td>{% if s.same_source_count > 0 %}⚠ +{{ s.same_source_count }} other{{ "s" if s.same_source_count != 1 }}{% else %}—{% endif %}</td>
             <td>
                 <form style="display:inline" method="POST" action="{{ url_for('admin.approve_submission', submission_id=s.id) }}">
                     <button type="submit">Approve</button>

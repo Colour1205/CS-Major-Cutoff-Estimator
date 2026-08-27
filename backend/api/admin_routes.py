@@ -3,6 +3,8 @@
 # gated behind session auth (see admin_required) rather than linked from it.
 import hmac
 import os
+from collections import Counter
+from datetime import datetime
 from functools import wraps
 
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
@@ -59,10 +61,30 @@ def logout():
     return redirect(url_for("admin.login"))
 
 
+def _format_timestamp(iso_string: str) -> str:
+    try:
+        return datetime.fromisoformat(iso_string).strftime("%Y-%m-%d %H:%M UTC")
+    except ValueError:
+        return iso_string
+
+
 @admin_bp.route("/", methods=["GET"])
 @admin_required
 def dashboard():
-    pending = submissions.list_submissions(status="pending")
+    all_submissions = submissions.list_submissions()
+
+    # How many total submissions (any status) share each ip_hash -- lets
+    # the dashboard flag "N submissions from this same source" without
+    # ever showing an actual IP address.
+    source_counts = Counter(s["ip_hash"] for s in all_submissions if s.get("ip_hash"))
+
+    pending = []
+    for s in submissions.list_submissions(status="pending"):
+        pending.append({
+            **s,
+            "submitted_at": _format_timestamp(s["submitted_at"]),
+            "same_source_count": source_counts.get(s.get("ip_hash"), 1) - 1,
+        })
 
     approved_by_year = submissions.get_approved_grades_by_year()
     year_rows = [
@@ -72,7 +94,6 @@ def dashboard():
     ]
 
     enrollment_years = sorted(_load_csv_by_year(ENROLLMENT_DATA_CSV_PATH).keys())
-    all_submissions = submissions.list_submissions()
     server_info = {
         "enrollment_years": enrollment_years,
         "total_submissions": len(all_submissions),
