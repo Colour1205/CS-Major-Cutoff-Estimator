@@ -1,22 +1,85 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Admin dashboard</title>
     <style>
-        body { font-family: sans-serif; max-width: 900px; margin: 24px auto; padding: 0 16px; background: #fff; color: #222; }
-        h2 { margin-top: 40px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
-        input[type="number"], input[type="text"] { width: 90px; padding: 4px; }
-        textarea { width: 100%; height: 140px; font-family: monospace; padding: 8px; box-sizing: border-box; }
-        button { padding: 6px 14px; cursor: pointer; }
-        .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-        .server-info { display: flex; gap: 24px; flex-wrap: wrap; }
-        .server-info div { background: #f4f4f4; padding: 8px 14px; border-radius: 6px; }
-        #extract-preview table { margin-top: 12px; }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; }
+        body {
+            font-family: sans-serif;
+            max-width: 900px;
+            margin: 24px auto;
+            padding: 0 16px;
+            background: #fff;
+            color: #222;
+        }
+
+        h2 {
+            margin-top: 40px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        input[type="number"],
+        input[type="text"] {
+            width: 90px;
+            padding: 4px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 140px;
+            font-family: monospace;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 6px 14px;
+            cursor: pointer;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .server-info {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .server-info div {
+            background: #f4f4f4;
+            padding: 8px 14px;
+            border-radius: 6px;
+        }
+
+        #extract-preview table {
+            margin-top: 12px;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
     </style>
 </head>
+
 <body>
     <div class="top-bar">
         <h1>Admin dashboard</h1>
@@ -36,28 +99,38 @@
     </div>
 
     <h2>Pending submissions</h2>
-    <p style="font-size: 13px; color: #666;">"Same source" flags submissions sharing a salted hash of the submitter's IP — never the IP itself — so you can spot a spam burst without this app ever storing anyone's actual address.</p>
     {% if pending %}
     <table>
-        <tr><th>School year</th><th>CSC148</th><th>CSC165</th><th>Average</th><th>Submitted</th><th>Same source</th><th></th></tr>
+        <tr>
+            <th>School year</th>
+            <th>CSC148</th>
+            <th>CSC165</th>
+            <th>Average</th>
+            <th>Submitted</th>
+            <th>Same source</th>
+            <th></th>
+        </tr>
         {% for s in pending %}
-        <tr{% if s.same_source_count > 0 %} style="background: #fff3cd;"{% endif %}>
+        <tr{% if s.same_source_count> 0 %} style="background: #fff3cd;"{% endif %}>
             <td>{{ s.year }}-{{ (s.year + 1) % 100 }}</td>
             <td>{{ s.csc148 if s.csc148 is not none else "" }}</td>
             <td>{{ s.csc165 if s.csc165 is not none else "" }}</td>
             <td>{{ s.average if s.average is not none else "" }}</td>
             <td>{{ s.submitted_at }}</td>
-            <td>{% if s.same_source_count > 0 %}⚠ +{{ s.same_source_count }} other{{ "s" if s.same_source_count != 1 }}{% else %}—{% endif %}</td>
+            <td>{% if s.same_source_count > 0 %}⚠ +{{ s.same_source_count }} other{{ "s" if s.same_source_count != 1
+                }}{% else %}—{% endif %}</td>
             <td>
-                <form style="display:inline" method="POST" action="{{ url_for('admin.approve_submission', submission_id=s.id) }}">
+                <form style="display:inline" method="POST"
+                    action="{{ url_for('admin.approve_submission', submission_id=s.id) }}">
                     <button type="submit">Approve</button>
                 </form>
-                <form style="display:inline" method="POST" action="{{ url_for('admin.reject_submission', submission_id=s.id) }}">
+                <form style="display:inline" method="POST"
+                    action="{{ url_for('admin.reject_submission', submission_id=s.id) }}">
                     <button type="submit">Reject</button>
                 </form>
             </td>
-        </tr>
-        {% endfor %}
+            </tr>
+            {% endfor %}
     </table>
     {% else %}
     <p>No pending submissions.</p>
@@ -68,7 +141,7 @@
         <label>School year
             <select name="year" required>
                 {% for y in range(min_school_year, max_school_year + 1) %}
-                <option value="{{ y }}" {{ "selected" if y == max_school_year }}>{{ y }}-{{ (y + 1) % 100 }}</option>
+                <option value="{{ y }}" {{ "selected" if y==max_school_year }}>{{ y }}-{{ (y + 1) % 100 }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -76,11 +149,26 @@
         <label>Safe grade <input type="text" name="safe_grade"></label>
         <button type="submit">Save</button>
     </form>
-    <p style="font-size: 13px; color: #666;">"Records" = individual reports in the database for that year (scraped + approved submissions, combined). Once a year reaches {{ min_records_to_override }}+ records, the values below come from those records instead of the manual-edit fields below — editing a year at or past that threshold has no effect until its record count drops back under it. Below the threshold, records are ignored entirely and the manual-edit value is used, so a handful of new submissions can't swing an established year off a tiny, unrepresentative sample.</p>
+    <p style="font-size: 13px; color: #666;">"Records" = individual reports in the database for that year (scraped +
+        approved submissions, combined). Once a year reaches {{ min_records_to_override }}+ records, the values below
+        come from those records instead of the manual-edit fields below — editing a year at or past that threshold has
+        no effect until its record count drops back under it. Below the threshold, records are ignored entirely and the
+        manual-edit value is used, so a handful of new submissions can't swing an established year off a tiny,
+        unrepresentative sample.</p>
     <table>
-        <tr><th>School year</th><th>Actual cutoff</th><th>Safe grade</th><th>Records</th></tr>
+        <tr>
+            <th>School year</th>
+            <th>Actual cutoff</th>
+            <th>Safe grade</th>
+            <th>Records</th>
+        </tr>
         {% for row in year_rows %}
-        <tr><td>{{ row.year }}-{{ (row.year + 1) % 100 }}</td><td>{{ row.actual_cutoff }}</td><td>{{ row.safe_grade }}</td><td>{{ row.record_count }}</td></tr>
+        <tr>
+            <td>{{ row.year }}-{{ (row.year + 1) % 100 }}</td>
+            <td>{{ row.actual_cutoff }}</td>
+            <td>{{ row.safe_grade }}</td>
+            <td>{{ row.record_count }}</td>
+        </tr>
         {% endfor %}
     </table>
 
@@ -94,6 +182,24 @@
     <div id="extract-preview"></div>
 
     <script>
+        // Poll for new pending submissions so the admin doesn't have to
+        // manually refresh -- reload the whole page (simplest way to keep
+        // the pending table, same-source flags, and server-info counts in
+        // sync) only when the count actually changes.
+        const INITIAL_PENDING_COUNT = {{ server_info.pending_count }};
+        setInterval(async () => {
+            try {
+                const response = await fetch("{{ url_for('admin.pending_count') }}");
+                if (!response.ok) return;
+                const data = await response.json();
+                if (data.pending_count !== INITIAL_PENDING_COUNT) {
+                    window.location.reload();
+                }
+            } catch (err) {
+                // Transient network hiccup -- just try again next tick.
+            }
+        }, 10000);
+
         const MIN_SCHOOL_YEAR = {{ min_school_year }};
         const MAX_SCHOOL_YEAR = {{ max_school_year }};
         function formatSchoolYear(year) {
@@ -186,4 +292,5 @@
         }
     </script>
 </body>
+
 </html>

@@ -72,14 +72,16 @@ def _format_timestamp(iso_string: str) -> str:
 @admin_required
 def dashboard():
     all_submissions = submissions.list_submissions()
+    pending_submissions = [s for s in all_submissions if s["status"] == "pending"]
 
-    # How many total submissions (any status) share each ip_hash -- lets
-    # the dashboard flag "N submissions from this same source" without
-    # ever showing an actual IP address.
-    source_counts = Counter(s["ip_hash"] for s in all_submissions if s.get("ip_hash"))
+    # How many *currently pending* submissions share each ip_hash -- a
+    # "is there an active spam burst right now" signal, not a lifetime
+    # tally, so it naturally drops to 0 for a source once everything it
+    # submitted has been approved/rejected.
+    source_counts = Counter(s["ip_hash"] for s in pending_submissions if s.get("ip_hash"))
 
     pending = []
-    for s in submissions.list_submissions(status="pending"):
+    for s in pending_submissions:
         pending.append({
             **s,
             "submitted_at": _format_timestamp(s["submitted_at"]),
@@ -112,6 +114,16 @@ def dashboard():
         max_school_year=current_school_year_start(),
         min_records_to_override=MIN_RECORDS_TO_OVERRIDE,
     )
+
+
+@admin_bp.route("/pending_count", methods=["GET"])
+@admin_required
+def pending_count():
+    """Polled by the dashboard's auto-refresh JS so a new submission shows
+    up without the admin needing to manually reload the page.
+    """
+    count = len(submissions.list_submissions(status="pending"))
+    return jsonify({"pending_count": count})
 
 
 @admin_bp.route("/submissions/<int:submission_id>/approve", methods=["POST"])
