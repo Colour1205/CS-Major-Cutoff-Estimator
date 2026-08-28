@@ -56,9 +56,9 @@ def extract_reports_from_text(text: str, openai_api_key: Optional[str] = None) -
     program before using these (same as reddit_scraper.py's approach) —
     this function only does the text -> structured-data step.
     """
-    api_key = openai_api_key or os.environ.get("OPENAI_API_KEY_OTHER")
+    api_key = openai_api_key or os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY_OTHER not set — pass openai_api_key= or set the env var")
+        raise RuntimeError("OPENAI_API_KEY not set — pass openai_api_key= or set the env var")
 
     client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
