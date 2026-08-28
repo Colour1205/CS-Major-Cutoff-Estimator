@@ -147,12 +147,14 @@
         </label>
         <label>Actual cutoff <input type="text" name="actual_cutoff"></label>
         <label>Safe grade <input type="text" name="safe_grade"></label>
+        <label><input type="checkbox" name="force_override"> Force override</label>
         <button type="submit">Save</button>
     </form>
     <p style="font-size: 13px; color: #666;">"Records" = individual reports in the database for that year (scraped +
         approved submissions, combined). Once a year reaches {{ min_records_to_override }}+ records, the values below
-        come from those records instead of the manual-edit fields below — editing a year at or past that threshold has
-        no effect until its record count drops back under it. Below the threshold, records are ignored entirely and the
+        come from those records instead of the manual-edit fields above — editing a year at or past that threshold has
+        no effect unless "Force override" is checked, which pins whichever field(s) you filled in to your manual value
+        regardless of record count, until reverted below. Below the threshold, records are ignored entirely and the
         manual-edit value is used, so a handful of new submissions can't swing an established year off a tiny,
         unrepresentative sample.</p>
     <table>
@@ -161,6 +163,7 @@
             <th>Actual cutoff</th>
             <th>Safe grade</th>
             <th>Records</th>
+            <th>Override</th>
         </tr>
         {% for row in year_rows %}
         <tr>
@@ -168,6 +171,17 @@
             <td>{{ row.actual_cutoff }}</td>
             <td>{{ row.safe_grade }}</td>
             <td>{{ row.record_count }}</td>
+            <td>
+                {% if row.overridden_fields %}
+                ⚠ {{ row.overridden_fields | join(", ") }}
+                <form style="display:inline" method="POST"
+                    action="{{ url_for('admin.revert_override', year=row.year) }}">
+                    <button type="submit">Revert</button>
+                </form>
+                {% else %}
+                —
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </table>

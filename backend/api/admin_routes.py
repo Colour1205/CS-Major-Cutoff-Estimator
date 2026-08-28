@@ -12,7 +12,7 @@ from flask import Blueprint, jsonify, redirect, render_template, request, sessio
 from backend.services import manual_data, submissions
 from backend.services.ai_extraction import extract_reports_from_text
 from backend.services.backtest import write_backtest_results
-from backend.services.estimate_service import _load_csv_by_year, get_history
+from backend.services.estimate_service import _load_csv_by_year, _load_overrides, get_history
 from backend.config import ENROLLMENT_DATA_CSV_PATH, MIN_RECORDS_TO_OVERRIDE
 from backend.utils import MIN_SCHOOL_YEAR, current_school_year_start
 
@@ -89,9 +89,11 @@ def dashboard():
         })
 
     approved_by_year = submissions.get_approved_grades_by_year()
+    overrides = _load_overrides()
     year_rows = [
         {"year": row["year"], "actual_cutoff": row["actual_cutoff"], "safe_grade": row["safe_grade"],
-         "record_count": len(approved_by_year.get(row["year"], []))}
+         "record_count": len(approved_by_year.get(row["year"], [])),
+         "overridden_fields": sorted(overrides.get(row["year"], set()))}
         for row in get_history()
     ]
 
@@ -148,12 +150,30 @@ def manual_edit():
     year = int(request.form["year"])
     actual_cutoff = request.form.get("actual_cutoff", "").strip()
     safe_grade = request.form.get("safe_grade", "").strip()
+    force_override = request.form.get("force_override") == "on"
 
     if actual_cutoff:
         manual_data.set_actual_cutoff(year, float(actual_cutoff))
+        if force_override:
+            manual_data.set_override(year, "actual_cutoff")
     if safe_grade:
         manual_data.set_safe_grade(year, float(safe_grade))
+        if force_override:
+            manual_data.set_override(year, "safe_grade")
 
+    _refresh_estimate()
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/data/manual/<int:year>/revert", methods=["POST"])
+@admin_required
+def revert_override(year):
+    """Drop a year's force-override flags -- it goes back to being computed
+    from grades.db records once it has enough of them (see
+    estimate_service._effective_values), or the manual-edit CSV value
+    below that threshold.
+    """
+    manual_data.clear_override(year)
     _refresh_estimate()
     return redirect(url_for("admin.dashboard"))
 

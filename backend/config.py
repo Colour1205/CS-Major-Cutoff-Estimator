@@ -65,6 +65,10 @@ BACKTEST_RESULTS_JSON_PATH = "backend/data/backtest_results.json"
 
 GRADES_DB_PATH = "backend/data/grades.db"
 
+# Years/fields an admin has explicitly forced to use the manual-edit CSV
+# value even past MIN_RECORDS_TO_OVERRIDE -- see estimate_service._effective_values.
+MANUAL_OVERRIDES_CSV_PATH = "backend/data/manual_overrides.csv"
+
 # A year's cutoff/safe grade only switches over to being computed from its
 # individual grades.db records (scraped_grades + approved submissions,
 # combined) once there are at least this many of them. Below that, a

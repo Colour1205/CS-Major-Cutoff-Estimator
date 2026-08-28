@@ -1,10 +1,12 @@
 # Service layer: loads enrollment + historical data and runs Estimator to
 # produce the cutoff and safe-grade estimates the API exposes.
 import csv
+from pathlib import Path
 
 from backend.config import (
     ENROLLMENT_DATA_CSV_PATH,
     HISTORICAL_AVERAGES_CSV_PATH,
+    MANUAL_OVERRIDES_CSV_PATH,
     MIN_RECORDS_TO_OVERRIDE,
     SAFE_GRADE_CSV_PATH,
 )
@@ -12,13 +14,30 @@ from backend.models import grade_stats
 from backend.models.estimator import Estimator
 from backend.services.submissions import get_approved_grades_by_year
 
+OVERRIDE_FIELDS = ("actual_cutoff", "safe_grade")
+
 
 def _load_csv_by_year(path: str) -> dict[int, dict]:
     with open(path, newline="") as f:
         return {int(row["year"]): row for row in csv.DictReader(f)}
 
 
-def _effective_values(year: int, averages_by_year: dict, safe_by_year: dict, approved_by_year: dict) -> dict:
+def _load_overrides(path: str = MANUAL_OVERRIDES_CSV_PATH) -> dict[int, set[str]]:
+    """Which (year, field) pairs an admin has force-overridden — see
+    manual_data.set_override/clear_override, which write this file.
+    """
+    if not Path(path).exists():
+        return {}
+    overrides: dict[int, set[str]] = {}
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            overrides.setdefault(int(row["year"]), set()).add(row["field"])
+    return overrides
+
+
+def _effective_values(
+    year: int, averages_by_year: dict, safe_by_year: dict, approved_by_year: dict, overrides: dict = None
+) -> dict:
     """A year's effective cutoff/safe grade.
 
     Once a year has at least MIN_RECORDS_TO_OVERRIDE individual records
@@ -31,20 +50,29 @@ def _effective_values(year: int, averages_by_year: dict, safe_by_year: dict, app
     instead — a handful of new records (even just one) would otherwise
     completely replace an established manual/forecast value with a tiny,
     unrepresentative sample.
+
+    An admin can force a specific field to keep using the manual CSV value
+    even past that threshold (see manual_data.set_override) — e.g. when
+    they know a batch of records is bad but haven't cleaned it up yet.
     """
-    records = approved_by_year.get(year, [])
-    if len(records) >= MIN_RECORDS_TO_OVERRIDE:
-        return {
-            "actual_cutoff": grade_stats.estimate_cutoff(records),
-            "safe_grade": grade_stats.safe_grade(records),
-        }
+    overridden_fields = (overrides or {}).get(year, set())
 
     existing_cutoff = averages_by_year.get(year, {}).get("actual_cutoff")
     existing_safe_grade = safe_by_year.get(year, {}).get("safe_grade")
-    return {
+    manual = {
         "actual_cutoff": float(existing_cutoff) if existing_cutoff not in (None, "") else None,
         "safe_grade": float(existing_safe_grade) if existing_safe_grade not in (None, "") else None,
     }
+
+    records = approved_by_year.get(year, [])
+    if len(records) < MIN_RECORDS_TO_OVERRIDE:
+        return manual
+
+    computed = {
+        "actual_cutoff": grade_stats.estimate_cutoff(records),
+        "safe_grade": grade_stats.safe_grade(records),
+    }
+    return {field: manual[field] if field in overridden_fields else computed[field] for field in OVERRIDE_FIELDS}
 
 
 def load_merged_data(
@@ -64,11 +92,12 @@ def load_merged_data(
     enrollment_by_year = _load_csv_by_year(enrollment_path)
     averages_by_year = _load_csv_by_year(averages_path)
     approved_by_year = get_approved_grades_by_year()
+    overrides = _load_overrides()
 
     return {
         year: {
             **enrollment,
-            "actual_cutoff": _effective_values(year, averages_by_year, {}, approved_by_year)["actual_cutoff"],
+            "actual_cutoff": _effective_values(year, averages_by_year, {}, approved_by_year, overrides)["actual_cutoff"],
         }
         for year, enrollment in enrollment_by_year.items()
     }
@@ -104,12 +133,13 @@ def get_latest_safe_grade_estimate(
     averages_by_year = _load_csv_by_year(averages_path)
     safe_by_year = _load_csv_by_year(safe_grade_path)
     approved_by_year = get_approved_grades_by_year()
+    overrides = _load_overrides()
 
     all_years = set(averages_by_year) | set(safe_by_year) | set(approved_by_year)
     actual_cutoff_by_year = {}
     safe_grade_by_year = {}
     for year in all_years:
-        effective = _effective_values(year, averages_by_year, safe_by_year, approved_by_year)
+        effective = _effective_values(year, averages_by_year, safe_by_year, approved_by_year, overrides)
         if effective["actual_cutoff"] is not None:
             actual_cutoff_by_year[year] = effective["actual_cutoff"]
         if effective["safe_grade"] is not None:
@@ -138,11 +168,12 @@ def get_history(
     averages_by_year = _load_csv_by_year(averages_path)
     safe_by_year = _load_csv_by_year(safe_grade_path)
     approved_by_year = get_approved_grades_by_year()
+    overrides = _load_overrides()
     years = sorted(set(averages_by_year) | set(safe_by_year) | set(approved_by_year))
 
     result = []
     for year in years:
-        effective = _effective_values(year, averages_by_year, safe_by_year, approved_by_year)
+        effective = _effective_values(year, averages_by_year, safe_by_year, approved_by_year, overrides)
         result.append({
             "year": year,
             "actual_cutoff": round(effective["actual_cutoff"], 2) if effective["actual_cutoff"] is not None else None,
