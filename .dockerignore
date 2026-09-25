@@ -1,0 +1,25 @@
+# Only backend/ goes into the image — keep everything else, plus local-only
+# state and secrets, out of the build context.
+.git
+.gitignore
+.dockerignore
+Dockerfile
+k8s/
+frontend/
+tools/
+README.md
+.env
+.venv/
+venv/
+**/__pycache__
+**/*.pyc
+*.log
+/cs-cutoff-reddit*.csv
+
+# Local-only scraper (gitignored) and its outputs.
+backend/scraper/
+backend/data/reddit_snippets*.json
+
+# Local runtime state — the container builds its own grades.db on first
+# start (auto-migrated scraped_grades seed), same as a fresh clone.
+backend/data/grades.db

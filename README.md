@@ -81,6 +81,29 @@ Every decision (approve/reject, manual edit, AI-extract confirm) immediately rec
 | `ADMIN_PASSWORD` | `/admin` login. Unset means admin login always fails. |
 | `SECRET_KEY` | Stable admin sessions across restarts (falls back to a random key otherwise). |
 | `OPENAI_API_KEY` | The scraper's extraction and the admin AI-paste-extract tool. |
+| `PROXY_FIX_HOPS` | Container only: number of trusted reverse proxies in front of the app (`1` behind a Kubernetes Ingress), so submitter IP hashes use the real client address. Default `0`. |
+
+## Docker / Kubernetes (backend)
+
+The `Dockerfile` packages the backend API (and `/admin`) behind gunicorn on port 5000, via `backend/wsgi.py`. It runs as **one worker process**, and the Kubernetes Deployment runs **one replica**. All state lives in `backend/data` (SQLite + CSVs), and the background refresh threads should only run once.
+
+```bash
+docker build -t cs-cutoff-backend .
+```
+
+On Kubernetes, `backend/data` is a PersistentVolumeClaim, so submissions, admin edits and refreshed enrollment data survive restarts. On first start, the empty volume is seeded from the data files baked into the image. After that, existing files are never overwritten, so **changing a CSV in the repo and redeploying won't update it**. Edit it through `/admin` or `kubectl cp` instead.
+
+```bash
+kubectl create secret generic cs-cutoff-backend-secrets --from-literal=ADMIN_PASSWORD=... --from-literal=SECRET_KEY=... --from-literal=OPENAI_API_KEY=...
+```
+
+```bash
+kubectl apply -f k8s/
+```
+
+- Push the image to a registry your cluster can pull from, and set `image:` in `k8s/backend.yaml`. Docker Desktop's built-in Kubernetes can use the local image as-is. For kind, run `kind load docker-image cs-cutoff-backend`. For minikube, run `minikube image load cs-cutoff-backend`.
+- Set the host and `ingressClassName` in `k8s/ingress.yaml`. Point the frontend's `API_BASE_URL` (`frontend/js/main.js`) at that host.
+- The pod needs outbound internet access to `raw.githubusercontent.com` for the daily enrollment refresh.
 
 ## Credits
 

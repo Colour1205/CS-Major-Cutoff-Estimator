@@ -1,0 +1,93 @@
+# Backend API: persistent volume for runtime data, the Deployment, and a
+# ClusterIP Service in front of it. Create the secret first (see README),
+# then: kubectl apply -f k8s/
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cs-cutoff-backend-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cs-cutoff-backend
+  labels:
+    app: cs-cutoff-backend
+spec:
+  # Must stay at 1: state is a SQLite file + CSVs on a ReadWriteOnce volume,
+  # and the background refresh threads should only ever run once.
+  replicas: 1
+  # The old pod has to release the volume before the new one can mount it.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: cs-cutoff-backend
+  template:
+    metadata:
+      labels:
+        app: cs-cutoff-backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        # Makes the mounted volume writable by the container's user.
+        fsGroup: 10001
+      containers:
+        - name: backend
+          # Replace with your registry path (e.g. ghcr.io/<you>/cs-cutoff-backend:<tag>)
+          # unless the cluster shares your local Docker image store.
+          image: cs-cutoff-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            # One trusted proxy (the Ingress controller) — see backend/wsgi.py.
+            # Set to "0" if you expose the Service directly instead.
+            - name: PROXY_FIX_HOPS
+              value: "1"
+          envFrom:
+            - secretRef:
+                name: cs-cutoff-backend-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /app/backend/data
+          readinessProbe:
+            httpGet:
+              path: /api/history
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: cs-cutoff-backend-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cs-cutoff-backend
+spec:
+  selector:
+    app: cs-cutoff-backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

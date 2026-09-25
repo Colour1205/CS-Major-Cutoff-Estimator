@@ -1,0 +1,21 @@
+# Public entry point for the API (and /admin). Set the host and
+# ingressClassName to match your cluster's ingress controller. If you skip
+# the Ingress and expose the Service another way, set PROXY_FIX_HOPS to
+# match (see k8s/backend.yaml).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cs-cutoff-backend
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: cutoff-api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cs-cutoff-backend
+                port:
+                  name: http
